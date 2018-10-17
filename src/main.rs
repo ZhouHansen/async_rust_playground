@@ -6,9 +6,10 @@ use std::time::{Duration, Instant};
 fn main() {
     let timer = ToyTimer::new();
     let exec = ToyExec::new();
-
+    let period = Duration::from_millis(1500);
+    let next = Instant::now() + period;
     for i in 1..10 {
-        exec.spawn(Periodic::new(i, Duration::from_millis(i * 500), timer.clone()));
+        exec.spawn(Periodic::new(i, period, next, timer.clone()));
     }
 
     exec.run()
@@ -29,9 +30,9 @@ struct Periodic {
 }
 
 impl Periodic {
-    fn new(id: u64, period: Duration, timer: ToyTimer) -> Periodic {
+    fn new(id: u64, period: Duration, next: Instant, timer: ToyTimer) -> Periodic {
         Periodic {
-            id, period, timer, next: Instant::now() + period
+            id, period, timer, next
         }
     }
 }
@@ -43,10 +44,11 @@ impl ToyTask for Periodic {
         if now >= self.next {
             self.next = now + self.period;
             println!("Task {} - ding", self.id);
+            return Async::Ready(())
         }
 
         // make sure we're registered to wake up at the next expected `ding`
-        self.timer.register(self.next, wake.clone());
+        self.timer.register(self.next, wake);
         Async::Pending
     }
 }

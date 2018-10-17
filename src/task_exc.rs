@@ -2,6 +2,7 @@ use std::mem;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, Thread};
+use std::process;
 
 pub enum Async<T> {
     /// Work completed with a result of type `T`.
@@ -137,6 +138,11 @@ impl ToyExec {
                     if let Async::Pending = entry.task.poll(entry.wake.clone()) {
                         // The task hasn't completed, so put it back in the table.
                         self.state_mut().tasks.insert(id, entry);
+                    }
+
+                    if self.state_mut().tasks.len() == 0 {
+                        println!("No more task, we are free!");
+                        process::exit(1);
                     }
                 }
             }

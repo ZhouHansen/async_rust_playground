@@ -19,7 +19,7 @@ pub struct Registration {
 /// State for the worker thread that processes timer events
 pub struct Worker {
     pub rx: mpsc::Receiver<Registration>,
-    pub active: BTreeMap<Instant, ToyWake>
+    pub active: BTreeMap<Instant, Vec<ToyWake>>
 }
 
 impl ToyTimer {
@@ -38,15 +38,15 @@ impl ToyTimer {
 
 impl Worker {
     pub fn enroll(&mut self, item: Registration) {
-        if self.active.insert(item.at, item.wake).is_some() {
-            // this simple setup doesn't support multiple registrations for
-            // the same instant; we'll revisit that in the next section.
-            panic!("Attempted to add to registrations for the same instant")
-        }
+        add_active(item.at, item.wake, &mut self.active)
     }
 
     pub fn fire(&mut self, key: Instant) {
-        self.active.remove(&key).unwrap().wake();
+        self.active.remove(&key).unwrap().iter().for_each(
+            |waker| {
+                waker.wake();
+            }
+        )
     }
 
     pub fn work(mut self) {
@@ -70,5 +70,15 @@ impl Worker {
                 self.enroll(new_registration)
             }
         }
+    }
+}
+
+fn add_active (property: Instant, new_value: ToyWake, active: &mut BTreeMap<Instant, Vec<ToyWake>>) {
+    if active.contains_key(&property) {
+        if let Some(x) = active.get_mut(&property) {
+            (*x).push(new_value);
+        } 
+    } else {
+        active.insert(property, vec![new_value]);
     }
 }
